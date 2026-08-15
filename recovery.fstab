@@ -1,10 +1,11 @@
-/system         ext4     system                                     flags=display=system;logical;slotselect
-/system_ext     ext4     system_ext                                 flags=display=system_ext;logical;slotselect
-/vendor         ext4     vendor                                     flags=display=vendor;logical;slotselect
-/odm            ext4     odm                                        flags=display=odm;logical;slotselect
-/product        ext4     product                                    flags=display=product;logical;slotselect
-/data           f2fs     /dev/block/bootdevice/by-name/userdata     flags=display=data
-/metadata       f2fs     /dev/block/bootdevice/by-name/metadata     flags=display=metadata
-/sdcard         vfat     /dev/block/mmcblk1p1                       flags=display=sdcard
-/boot           emmc     /dev/block/bootdevice/by-name/boot         flags=display=boot
-/misc           emmc     /dev/block/bootdevice/by-name/misc         flags=display=misc
+# mount point    fstype    device                             flags
+/system          ext4      system                             logical,first_stage_mount
+/system_ext      ext4      system_ext                         logical,first_stage_mount
+/vendor          ext4      vendor                             logical,first_stage_mount
+/product         ext4      product                            logical,first_stage_mount
+
+/metadata        ext4      /dev/block/bootdevice/by-name/metadata             flags=wait,check,formattable,first_stage_mount
+/userdata        f2fs      /dev/block/bootdevice/by-name/userdata             flags=fileencryption=ice,wait,check,formattable,quota,reservedsize=128M
+/boot            emmc      /dev/block/bootdevice/by-name/boot                 flags=backup=1;flashimg=1
+/recovery        emmc      /dev/block/bootdevice/by-name/recovery             flags=backup=1;flashimg=1
+/misc            emmc      /dev/block/bootdevice/by-name/misc
