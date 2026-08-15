@@ -1,0 +1,56 @@
+name: Build TWRP for Motorola G Play 2024 (fogona)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build TWRP Image
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Clean Up Disk Space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo apt-get clean
+
+    - name: Install Build Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          g++-multilib gcc-multilib lib32ncurses5-dev lib32z1-dev \
+          bison build-essential curl flex git git-core gnupg \
+          liblz4-tool libncurses5 libxml2-utils lzop pngcrush \
+          schedtool squashfs-tools xsltproc zip zlib1g-dev \
+          python3 python-is-python3 repo
+
+    - name: Set up Repo and Workspace
+      run: |
+        mkdir -p ~/TWRP
+        cd ~/TWRP
+        git config --global user.name "GitHub Action"
+        git config --global user.email "action@github.com"
+        repo init --depth=1 -u [https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git](https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git) -b twrp-12.1
+        repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+
+    - name: Clone Device Tree
+      run: |
+        cd ~/TWRP
+        git clone [https://github.com/d1g0l3b1ck/android_device_motorola_fogona.git](https://github.com/d1g0l3b1ck/android_device_motorola_fogona.git) device/motorola/fogona
+
+    - name: Build TWRP
+      run: |
+        cd ~/TWRP
+        source build/envsetup.sh
+        lunch twrp_fogona-eng
+        mka recoveryimage -j$(nproc --all)
+
+    - name: Upload TWRP Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: TWRP-fogona-Recovery
+        path: |
+          /home/runner/TWRP/out/target/product/fogona/recovery.img
+          /home/runner/TWRP/out/target/product/fogona/boot.img
