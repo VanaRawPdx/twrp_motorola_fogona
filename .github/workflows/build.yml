@@ -6,51 +6,103 @@ on:
 jobs:
   build:
     name: Build TWRP Image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    env:
+      TWRP_ROOT: /home/runner/TWRP
+      DEVICE_TREE: /home/runner/TWRP/device/motorola/fogona
+      PRODUCT_OUT: /home/runner/TWRP/out/target/product/fogona
 
     steps:
-    - name: Clean Up Disk Space
-      run: |
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/ghc
-        sudo apt-get clean
+      - name: Clean Up Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo apt-get clean
 
-    - name: Install Build Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          g++-multilib gcc-multilib lib32ncurses5-dev lib32z1-dev \
-          bison build-essential curl flex git git-core gnupg \
-          liblz4-tool libncurses5 libxml2-utils lzop pngcrush \
-          schedtool squashfs-tools xsltproc zip zlib1g-dev \
-          python3 python-is-python3 repo
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            g++-multilib gcc-multilib lib32ncurses5-dev lib32z1-dev \
+            bison build-essential curl flex git git-core gnupg \
+            liblz4-tool libncurses5 libxml2-utils lzop pngcrush \
+            schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3 repo
 
-    - name: Set up Repo and Workspace
-      run: |
-        mkdir -p ~/TWRP
-        cd ~/TWRP
-        git config --global user.name "GitHub Action"
-        git config --global user.email "action@github.com"
-        repo init --depth=1 -u [https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git](https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git) -b twrp-12.1
-        repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+      - name: Set up Repo and Workspace
+        run: |
+          mkdir -p "$TWRP_ROOT"
+          cd "$TWRP_ROOT"
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
 
-    - name: Clone Device Tree
-      run: |
-        cd ~/TWRP
-        git clone [https://github.com/d1g0l3b1ck/android_device_motorola_fogona.git](https://github.com/d1g0l3b1ck/android_device_motorola_fogona.git) device/motorola/fogona
+      - name: Clone Device Tree
+        run: |
+          git clone --depth=1 --branch twrp-12.1 --single-branch \
+            https://github.com/VanaRawPdx/twrp_motorola_fogona.git \
+            "$DEVICE_TREE"
 
-    - name: Build TWRP
-      run: |
-        cd ~/TWRP
-        source build/envsetup.sh
-        lunch twrp_fogona-eng
-        mka recoveryimage -j$(nproc --all)
+      - name: Preflight Build Inputs and Output Paths
+        run: |
+          set -euo pipefail
 
-    - name: Upload TWRP Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: TWRP-fogona-Recovery
-        path: |
-          /home/runner/TWRP/out/target/product/fogona/recovery.img
-          /home/runner/TWRP/out/target/product/fogona/boot.img
+          for makefile in \
+            "$DEVICE_TREE/AndroidProducts.mk" \
+            "$DEVICE_TREE/BoardConfig.mk" \
+            "$DEVICE_TREE/twrp_fogona.mk"; do
+            test -s "$makefile" || {
+              echo "Missing expected makefile: $makefile" >&2
+              exit 1
+            }
+          done
+
+          grep -Fq '$(LOCAL_DIR)/twrp_fogona.mk' "$DEVICE_TREE/AndroidProducts.mk"
+          grep -Fq 'twrp_fogona-eng' "$DEVICE_TREE/AndroidProducts.mk"
+          grep -Fq 'PRODUCT_DEVICE := fogona' "$DEVICE_TREE/twrp_fogona.mk"
+          test "$(git -C "$DEVICE_TREE" branch --show-current)" = "twrp-12.1"
+
+          case "$PRODUCT_OUT" in
+            "$TWRP_ROOT"/out/target/product/fogona) ;;
+            *)
+              echo "Unexpected product output directory: $PRODUCT_OUT" >&2
+              exit 1
+              ;;
+          esac
+
+          printf 'Expected build output: %s\n' \
+            "$PRODUCT_OUT/recovery.img" \
+            "$PRODUCT_OUT/boot.img"
+
+      - name: Sync Sources
+        run: |
+          cd "$TWRP_ROOT"
+          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
+
+      - name: Build TWRP
+        run: |
+          cd "$TWRP_ROOT"
+          source build/envsetup.sh
+          lunch twrp_fogona-eng
+          mka recoveryimage -j$(nproc --all)
+
+      - name: Verify Build Outputs
+        run: |
+          set -euo pipefail
+
+          for image in recovery.img boot.img; do
+            test -s "$PRODUCT_OUT/$image" || {
+              echo "Missing expected build output: $PRODUCT_OUT/$image" >&2
+              exit 1
+            }
+          done
+
+      - name: Upload TWRP Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TWRP-fogona-Recovery
+          path: |
+            ${{ env.PRODUCT_OUT }}/recovery.img
+            ${{ env.PRODUCT_OUT }}/boot.img
+          if-no-files-found: error
