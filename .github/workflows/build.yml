@@ -41,7 +41,7 @@ jobs:
       - name: Clone Device Tree
         run: |
           git clone --depth=1 --branch twrp-12.1 --single-branch \
-            https://github.com/VanaRawPdx/twrp_motorola_fogona.git \
+            https://github.com/d1g0l3b1ck/twrp_motorola_fogona.git \
             "$DEVICE_TREE"
 
       - name: Preflight Build Inputs and Output Paths
@@ -60,6 +60,7 @@ jobs:
 
           grep -Fq '$(LOCAL_DIR)/twrp_fogona.mk' "$DEVICE_TREE/AndroidProducts.mk"
           grep -Fq 'twrp_fogona-eng' "$DEVICE_TREE/AndroidProducts.mk"
+          grep -Fq '$(SRC_TARGET_DIR)/product/core_64_bit.mk' "$DEVICE_TREE/twrp_fogona.mk"
           grep -Fq 'PRODUCT_DEVICE := fogona' "$DEVICE_TREE/twrp_fogona.mk"
           test "$(git -C "$DEVICE_TREE" branch --show-current)" = "twrp-12.1"
 
@@ -85,7 +86,7 @@ jobs:
           cd "$TWRP_ROOT"
           source build/envsetup.sh
           lunch twrp_fogona-eng
-          mka recoveryimage -j$(nproc --all)
+          mka recoveryimage bootimage -j$(nproc --all)
 
       - name: Verify Build Outputs
         run: |
