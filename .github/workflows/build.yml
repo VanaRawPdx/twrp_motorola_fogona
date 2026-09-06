@@ -2,6 +2,9 @@ name: Build OrangeFox for Motorola G Play 2024 (fogona)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - twrp-12.1
 
 jobs:
   build:
@@ -101,3 +104,4 @@ jobs:
           path: |
             ${{ env.PRODUCT_OUT }}/recovery.img
           if-no-files-found: error
+
