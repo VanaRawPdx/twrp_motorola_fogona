@@ -1,4 +1,4 @@
-name: Build TWRP for Motorola G Play 2024 (fogona)
+name: Build OrangeFox for Motorola G Play 2024 (fogona)
 
 on:
   workflow_dispatch:
@@ -8,9 +8,9 @@ jobs:
     name: Build TWRP Image
     runs-on: ubuntu-22.04
     env:
-      TWRP_ROOT: /home/runner/TWRP
-      DEVICE_TREE: /home/runner/TWRP/device/motorola/fogona
-      PRODUCT_OUT: /home/runner/TWRP/out/target/product/fogona
+      TWRP_ROOT: /home/runner/OrangeFox
+      DEVICE_TREE: /home/runner/OrangeFox/device/motorola/fogona
+      PRODUCT_OUT: /home/runner/OrangeFox/out/target/product/fogona
 
     steps:
       - name: Clean Up Disk Space
@@ -30,18 +30,18 @@ jobs:
             schedtool squashfs-tools xsltproc zip zlib1g-dev \
             python3 python-is-python3 repo
 
-      - name: Set up Repo and Workspace
+      - name: Sync OrangeFox 12.1 Sources
         run: |
-          mkdir -p "$TWRP_ROOT"
-          cd "$TWRP_ROOT"
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-          repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
+          git clone --depth=1 https://gitlab.com/OrangeFox/sync.git /home/runner/OrangeFox_sync
+          cd /home/runner/OrangeFox_sync
+          ./orangefox_sync.sh --branch 12.1 --path "$TWRP_ROOT"
 
       - name: Clone Device Tree
         run: |
           git clone --depth=1 --branch twrp-12.1 --single-branch \
-            https://github.com/d1g0l3b1ck/twrp_motorola_fogona.git \
+            https://github.com/VanaRawPdx/twrp_motorola_fogona.git \
             "$DEVICE_TREE"
 
       - name: Preflight Build Inputs and Output Paths
@@ -76,34 +76,28 @@ jobs:
             "$PRODUCT_OUT/recovery.img" \
             "$PRODUCT_OUT/boot.img"
 
-      - name: Sync Sources
-        run: |
-          cd "$TWRP_ROOT"
-          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
-
-      - name: Build TWRP
+      - name: Build OrangeFox Recovery
         run: |
           cd "$TWRP_ROOT"
           source build/envsetup.sh
           lunch twrp_fogona-eng
-          mka recoveryimage bootimage -j$(nproc --all)
+          mka recoveryimage -j$(nproc --all)
 
       - name: Verify Build Outputs
         run: |
           set -euo pipefail
 
-          for image in recovery.img boot.img; do
+          for image in recovery.img; do
             test -s "$PRODUCT_OUT/$image" || {
               echo "Missing expected build output: $PRODUCT_OUT/$image" >&2
               exit 1
             }
           done
 
-      - name: Upload TWRP Artifact
+      - name: Upload OrangeFox Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TWRP-fogona-Recovery
+          name: OrangeFox-fogona-Recovery
           path: |
             ${{ env.PRODUCT_OUT }}/recovery.img
-            ${{ env.PRODUCT_OUT }}/boot.img
           if-no-files-found: error
