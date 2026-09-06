@@ -78,9 +78,21 @@ jobs:
 
       - name: Build OrangeFox Recovery
         run: |
+          set -euo pipefail
           cd "$TWRP_ROOT"
           source build/envsetup.sh
-          lunch twrp_fogona-eng
+          if ! lunch twrp_fogona-eng; then
+            echo "lunch twrp_fogona-eng failed"
+            echo "Device tree files:"
+            find "$DEVICE_TREE" -maxdepth 2 -type f | sort
+            echo "AndroidProducts.mk:"
+            sed -n '1,120p' "$DEVICE_TREE/AndroidProducts.mk"
+            echo "twrp_fogona.mk:"
+            sed -n '1,160p' "$DEVICE_TREE/twrp_fogona.mk"
+            echo "Available COMMON_LUNCH_CHOICES:"
+            find device vendor -name AndroidProducts.mk -print0 | xargs -0 grep -h '^COMMON_LUNCH_CHOICES\|^[[:space:]]*[a-zA-Z0-9_+-]*-eng\|^[[:space:]]*[a-zA-Z0-9_+-]*-userdebug' || true
+            exit 1
+          fi
           mka recoveryimage -j$(nproc --all)
 
       - name: Verify Build Outputs
@@ -101,4 +113,3 @@ jobs:
           path: |
             ${{ env.PRODUCT_OUT }}/recovery.img
           if-no-files-found: error
-
