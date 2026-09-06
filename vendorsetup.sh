@@ -1,8 +1,5 @@
 #!/bin/bash
 
-add_lunch_combo twrp_fogona-eng
-add_lunch_combo twrp_fogona-userdebug
-
 # OrangeFox fox_12.1 build variables for the first, boot-focused bring-up.
 export ALLOW_MISSING_DEPENDENCIES=true
 export TARGET_ARCH=arm64
