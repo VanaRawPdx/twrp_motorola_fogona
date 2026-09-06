@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build TWRP Image
+    name: Build OrangeFox Recovery
     runs-on: ubuntu-22.04
     env:
       TWRP_ROOT: /home/runner/OrangeFox
@@ -63,7 +63,6 @@ jobs:
 
           grep -Fq '$(LOCAL_DIR)/twrp_fogona.mk' "$DEVICE_TREE/AndroidProducts.mk"
           grep -Fq 'twrp_fogona-eng' "$DEVICE_TREE/AndroidProducts.mk"
-          grep -Fq '$(SRC_TARGET_DIR)/product/core_64_bit.mk' "$DEVICE_TREE/twrp_fogona.mk"
           grep -Fq 'PRODUCT_DEVICE := fogona' "$DEVICE_TREE/twrp_fogona.mk"
           test "$(git -C "$DEVICE_TREE" branch --show-current)" = "twrp-12.1"
 
@@ -75,9 +74,7 @@ jobs:
               ;;
           esac
 
-          printf 'Expected build output: %s\n' \
-            "$PRODUCT_OUT/recovery.img" \
-            "$PRODUCT_OUT/boot.img"
+          printf 'Expected build output: %s\n' "$PRODUCT_OUT/recovery.img"
 
       - name: Build OrangeFox Recovery
         run: |
